@@ -23,11 +23,4 @@ defmodule Tentacat.Issues.LabelsTest do
       assert name == "WIP"
     end
   end
-
-  test "remove/5" do
-    use_cassette "issues/labels#remove" do
-      {status_code, _} = remove("dwyl", "learn-elixir", "1", "WIP", @client)
-      assert status_code == 204
-    end
-  end
 end
