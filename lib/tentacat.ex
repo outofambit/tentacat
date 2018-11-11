@@ -99,7 +99,7 @@ defmodule Tentacat do
     |> process_response
   end
 
-  @spec request_stream(atom, binary, Client.auth, any, atom | nil) ::
+  @spec request_stream(atom, binary, Client.auth, any, (atom | nil)) ::
     ({:cont, any()} | {:halt, any()} | {:suspend, any()}, any() -> any())
     | response
   def request_stream(method, url, auth, body \\ "", override \\ nil) do
@@ -107,13 +107,15 @@ defmodule Tentacat do
     |> stream_if_needed(override)
   end
 
-  defp stream_if_needed({body, nil, _}, _), do: body
-  defp stream_if_needed({body, _, _}, :one_page), do: body
+  @spec stream_if_needed({response, (binary | nil), Client.auth}, (atom | nil)) :: response | Enumerable.t
+  defp stream_if_needed({response_body, nil, _}, _), do: response_body
+  defp stream_if_needed({response_body, _, _}, :one_page), do: response_body
 
   defp stream_if_needed(initial_results, _) do
     Stream.resource(fn -> initial_results end, &process_stream/1, fn _ -> nil end)
   end
 
+  @spec realize_if_needed(binary | Enumerable.t) :: binary | list
   defp realize_if_needed(x) when is_tuple(x) or is_binary(x) or is_list(x) or is_map(x), do: x
   defp realize_if_needed(stream), do: Enum.to_list(stream)
 
@@ -153,7 +155,7 @@ defmodule Tentacat do
     end
   end
 
-  @spec pagination_tuple(HTTPoison.Response.t(), Client.auth()) :: {binary, binary, Client.auth()}
+  @spec pagination_tuple(HTTPoison.Response.t(), Client.auth()) :: {response, (binary | nil), Client.auth()}
   defp pagination_tuple(%HTTPoison.Response{:headers => headers} = resp, auth) do
     {process_response(resp), next_link(headers), auth}
   end
@@ -163,6 +165,7 @@ defmodule Tentacat do
     url
   end
 
+  @spec next_link(list) :: (binary | nil)
   defp next_link(headers) do
     for {"Link", link_header} <- headers,
         links <- String.split(link_header, ",") do
