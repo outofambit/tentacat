@@ -104,7 +104,6 @@ defmodule Tentacat do
     |> stream_if_needed(override)
   end
 
-  defp stream_if_needed(result = {status_code, _, _}, _) when is_number(status_code), do: result
   defp stream_if_needed({body, nil, _}, _), do: body
   defp stream_if_needed({body, _, _}, :one_page), do: body
 
