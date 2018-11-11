@@ -15,18 +15,22 @@ defmodule Tentacat do
   def process_response(%HTTPoison.Response{status_code: status_code, body: body} = resp),
     do: {status_code, body, resp}
 
+  @spec delete(binary, Client.t, any) :: response
   def delete(path, client, body \\ "") do
     _request(:delete, url(client, path), client.auth, body)
   end
 
+  @spec post(binary, Client.t, any) :: response
   def post(path, client, body \\ "") do
     _request(:post, url(client, path), client.auth, body)
   end
 
+  @spec patch(binary, Client.t, any) :: response
   def patch(path, client, body \\ "") do
     _request(:patch, url(client, path), client.auth, body)
   end
 
+  @spec put(binary, Client.t, any) :: response
   def put(path, client, body \\ "") do
     _request(:put, url(client, path), client.auth, body)
   end
@@ -47,6 +51,7 @@ defmodule Tentacat do
       `:manual` will return a 3 element tuple of `{page_body, url_for_next_page, auth_credentials}`,
       which will allow you to control the paging yourself.
   """
+  @spec get(binary, Client.t, keyword, keyword) :: response
   def get(path, client, params \\ [], options \\ []) do
     url =
       client
