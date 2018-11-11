@@ -132,8 +132,8 @@ defmodule Tentacat do
     {[item], {[], next, auth}}
   end
 
-  @spec request_with_pagination(atom, binary, Client.auth(), binary) ::
-          {binary, binary, Client.auth()}
+  @spec request_with_pagination(atom, binary, Client.auth, any) ::
+    {{:ok | integer(), any(), map()}, any(), Client.auth}
   def request_with_pagination(method, url, auth, body \\ "") do
     resp =
       request!(
