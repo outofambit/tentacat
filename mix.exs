@@ -32,7 +32,8 @@ defmodule Tentacat.Mixfile do
       {:inch_ex, "~> 0.5", only: :dev},
       {:excoveralls, "~> 0.5", only: :test},
       {:exvcr, "~> 0.9.1", only: :test},
-      {:meck, "~> 0.8.9", only: :test}
+      {:meck, "~> 0.8.9", only: :test},
+      {:dialyxir, "~> 1.0.0-rc.4", only: [:dev], runtime: false}
     ]
   end
 
