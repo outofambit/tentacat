@@ -62,10 +62,12 @@ defmodule Tentacat do
     end
   end
 
+  @spec _request(atom, binary, Client.auth, any) :: response
   def _request(method, url, auth, body \\ "") do
     json_request(method, url, body, authorization_header(auth, @user_agent))
   end
 
+  @spec json_request(atom, binary, any, keyword, keyword) :: response
   def json_request(method, url, body \\ "", headers \\ [], options \\ []) do
     raw_request(method, url, JSX.encode!(body), headers, options)
   end
