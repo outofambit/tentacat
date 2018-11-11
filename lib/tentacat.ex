@@ -99,6 +99,9 @@ defmodule Tentacat do
     |> process_response
   end
 
+  @spec request_stream(atom, binary, Client.auth, any, atom | nil) ::
+    ({:cont, any()} | {:halt, any()} | {:suspend, any()}, any() -> any())
+    | response
   def request_stream(method, url, auth, body \\ "", override \\ nil) do
     request_with_pagination(method, url, auth, JSX.encode!(body))
     |> stream_if_needed(override)
