@@ -7,6 +7,8 @@ defmodule Tentacat do
   @type response ::
           {:ok, :jsx.json_term(), HTTPoison.Response.t()} | {integer, any, HTTPoison.Response.t()}
 
+  @typep pagination_tuple :: {response, (binary | nil), Client.auth()}
+
   @spec process_response_body(binary) :: term
   def process_response_body(""), do: nil
   def process_response_body(body), do: JSX.decode!(body, deserialization_options())
@@ -151,12 +153,12 @@ defmodule Tentacat do
         request_with_pagination(method, location_header(resp), auth)
 
       _ ->
-        pagination_tuple(resp, auth)
+        build_pagination_tuple(resp, auth)
     end
   end
 
-  @spec pagination_tuple(HTTPoison.Response.t(), Client.auth()) :: {response, (binary | nil), Client.auth()}
-  defp pagination_tuple(%HTTPoison.Response{:headers => headers} = resp, auth) do
+  @spec build_pagination_tuple(HTTPoison.Response.t(), Client.auth()) :: pagination_tuple
+  defp build_pagination_tuple(%HTTPoison.Response{:headers => headers} = resp, auth) do
     {process_response(resp), next_link(headers), auth}
   end
 
