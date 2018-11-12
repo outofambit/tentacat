@@ -7,7 +7,7 @@ defmodule Tentacat do
   @type response ::
           {:ok, :jsx.json_term(), HTTPoison.Response.t()} | {integer, any, HTTPoison.Response.t()}
 
-  @typep pagination_tuple :: {response, (binary | nil), Client.auth()}
+  @type pagination_response :: {response, (binary | nil), Client.auth()}
 
   @spec process_response_body(binary) :: term
   def process_response_body(""), do: nil
@@ -55,7 +55,7 @@ defmodule Tentacat do
   """
   @spec get(binary, Client.t) :: response
   @spec get(binary, Client.t, keyword) :: response
-  @spec get(binary, Client.t, keyword, keyword) :: response
+  @spec get(binary, Client.t, keyword, keyword) :: response | Enumerable.t | pagination_response
   def get(path, client, params \\ [], options \\ []) do
     url =
       client
@@ -63,10 +63,10 @@ defmodule Tentacat do
       |> add_params_to_url(params)
 
     case pagination(options) do
-      nil -> request_stream(:get, url, client.auth) |> realize_if_needed
+      nil -> request_stream(:get, url, client.auth)
       :none -> request_stream(:get, url, client.auth, "", :one_page)
-      :auto -> request_stream(:get, url, client.auth) |> realize_if_needed
-      :stream -> request_stream(:get, url, client.auth)
+      :auto -> request_stream(:get, url, client.auth)
+      :stream -> request_stream(:get, url, client.auth, "", :stream)
       :manual -> request_with_pagination(:get, url, client.auth)
     end
   end
@@ -104,24 +104,22 @@ defmodule Tentacat do
     |> process_response
   end
 
-  @spec request_stream(atom, binary, Client.auth, any, (:one_page | nil)) :: Enumerable.t | response
+  @spec request_stream(atom, binary, Client.auth, any, (:one_page | nil | :stream)) :: Enumerable.t | response
   def request_stream(method, url, auth, body \\ "", override \\ nil) do
     request_with_pagination(method, url, auth, JSX.encode!(body))
     |> stream_if_needed(override)
   end
 
-  @spec stream_if_needed(pagination_tuple, :one_page) :: response
-  @spec stream_if_needed({response, nil, Client.auth}, nil) :: response
-  @spec stream_if_needed({response, binary, Client.auth}, nil) :: Enumerable.t
+  @spec stream_if_needed(pagination_response, :one_page | nil) :: response
+  @spec stream_if_needed({response, binary | nil, Client.auth}, :stream) :: Enumerable.t
   defp stream_if_needed({response, _, _}, :one_page), do: response
   defp stream_if_needed({response, nil, _}, _), do: response
-  defp stream_if_needed(initial_results, nil) do
+  defp stream_if_needed(initial_results = {response, _, _}, nil) do
+    {elem(response, 0), Enum.to_list(Stream.resource(fn -> initial_results end, &process_stream/1, fn _ -> nil end)), elem(response, 2)}
+  end
+  defp stream_if_needed(initial_results, :stream) do
     Stream.resource(fn -> initial_results end, &process_stream/1, fn _ -> nil end)
   end
-
-  @spec realize_if_needed(binary | Enumerable.t) :: binary | list
-  defp realize_if_needed(x) when is_tuple(x) or is_binary(x) or is_list(x) or is_map(x), do: x
-  defp realize_if_needed(stream), do: Enum.to_list(stream)
 
   defp process_stream({[], nil, _}), do: {:halt, nil}
 
@@ -138,7 +136,7 @@ defmodule Tentacat do
     {[item], {[], next, auth}}
   end
 
-  @spec request_with_pagination(atom, binary, Client.auth, any) :: pagination_tuple
+  @spec request_with_pagination(atom, binary, Client.auth, any) :: pagination_response
   def request_with_pagination(method, url, auth, body \\ "") do
     resp =
       request!(
@@ -154,12 +152,12 @@ defmodule Tentacat do
         request_with_pagination(method, location_header(resp), auth)
 
       _ ->
-        build_pagination_tuple(resp, auth)
+        build_pagination_response(resp, auth)
     end
   end
 
-  @spec build_pagination_tuple(HTTPoison.Response.t(), Client.auth()) :: pagination_tuple
-  defp build_pagination_tuple(%HTTPoison.Response{:headers => headers} = resp, auth) do
+  @spec build_pagination_response(HTTPoison.Response.t(), Client.auth()) :: pagination_response
+  defp build_pagination_response(%HTTPoison.Response{:headers => headers} = resp, auth) do
     {process_response(resp), next_link(headers), auth}
   end
 
