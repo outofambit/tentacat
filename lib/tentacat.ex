@@ -53,6 +53,8 @@ defmodule Tentacat do
       `:manual` will return a 3 element tuple of `{page_body, url_for_next_page, auth_credentials}`,
       which will allow you to control the paging yourself.
   """
+  @spec get(binary, Client.t) :: response
+  @spec get(binary, Client.t, keyword) :: response
   @spec get(binary, Client.t, keyword, keyword) :: response
   def get(path, client, params \\ [], options \\ []) do
     url =
@@ -101,7 +103,7 @@ defmodule Tentacat do
     |> process_response
   end
 
-  @spec request_stream(atom, binary, Client.auth, any, (atom | nil)) ::
+  @spec request_stream(atom, binary, Client.auth, any, (:one_page | nil)) ::
     ({:cont, any()} | {:halt, any()} | {:suspend, any()}, any() -> any())
     | response
   def request_stream(method, url, auth, body \\ "", override \\ nil) do
@@ -109,10 +111,11 @@ defmodule Tentacat do
     |> stream_if_needed(override)
   end
 
-  @spec stream_if_needed({response, (binary | nil), Client.auth}, (atom | nil)) :: response | Enumerable.t
-  defp stream_if_needed({response_body, nil, _}, _), do: response_body
-  defp stream_if_needed({response_body, _, _}, :one_page), do: response_body
-
+  @spec stream_if_needed({response, nil, Client.auth}, nil) :: response
+  @spec stream_if_needed(pagination_tuple, :one_page) :: response
+  @spec stream_if_needed({response, binary, Client.auth}, nil) :: Enumerable.t
+  defp stream_if_needed({response, nil, _}, _), do: response
+  defp stream_if_needed({response, _, _}, :one_page), do: response
   defp stream_if_needed(initial_results, _) do
     Stream.resource(fn -> initial_results end, &process_stream/1, fn _ -> nil end)
   end
@@ -137,7 +140,7 @@ defmodule Tentacat do
   end
 
   @spec request_with_pagination(atom, binary, Client.auth, any) ::
-    {{:ok | integer(), any(), map()}, any(), Client.auth}
+    {response, any, Client.auth}
   def request_with_pagination(method, url, auth, body \\ "") do
     resp =
       request!(
