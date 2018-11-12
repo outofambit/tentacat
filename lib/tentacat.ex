@@ -7,7 +7,7 @@ defmodule Tentacat do
   @type response ::
           {:ok, :jsx.json_term(), HTTPoison.Response.t()} | {integer, any, HTTPoison.Response.t()}
 
-  @type pagination_response :: {response, (binary | nil), Client.auth()}
+  @type pagination_response :: {response, binary | nil, Client.auth()}
 
   @spec process_response_body(binary) :: term
   def process_response_body(""), do: nil
@@ -17,22 +17,22 @@ defmodule Tentacat do
   def process_response(%HTTPoison.Response{status_code: status_code, body: body} = resp),
     do: {status_code, body, resp}
 
-  @spec delete(binary, Client.t, any) :: response
+  @spec delete(binary, Client.t(), any) :: response
   def delete(path, client, body \\ "") do
     _request(:delete, url(client, path), client.auth, body)
   end
 
-  @spec post(binary, Client.t, any) :: response
+  @spec post(binary, Client.t(), any) :: response
   def post(path, client, body \\ "") do
     _request(:post, url(client, path), client.auth, body)
   end
 
-  @spec patch(binary, Client.t, any) :: response
+  @spec patch(binary, Client.t(), any) :: response
   def patch(path, client, body \\ "") do
     _request(:patch, url(client, path), client.auth, body)
   end
 
-  @spec put(binary, Client.t, any) :: response
+  @spec put(binary, Client.t(), any) :: response
   def put(path, client, body \\ "") do
     _request(:put, url(client, path), client.auth, body)
   end
@@ -53,9 +53,10 @@ defmodule Tentacat do
       `:manual` will return a 3 element tuple of `{page_body, url_for_next_page, auth_credentials}`,
       which will allow you to control the paging yourself.
   """
-  @spec get(binary, Client.t) :: response
-  @spec get(binary, Client.t, keyword) :: response
-  @spec get(binary, Client.t, keyword, keyword) :: response | Enumerable.t | pagination_response
+  @spec get(binary, Client.t()) :: response
+  @spec get(binary, Client.t(), keyword) :: response
+  @spec get(binary, Client.t(), keyword, keyword) ::
+          response | Enumerable.t() | pagination_response
   def get(path, client, params \\ [], options \\ []) do
     url =
       client
@@ -71,7 +72,7 @@ defmodule Tentacat do
     end
   end
 
-  @spec _request(atom, binary, Client.auth, any) :: response
+  @spec _request(atom, binary, Client.auth(), any) :: response
   def _request(method, url, auth, body \\ "") do
     json_request(method, url, body, authorization_header(auth, @user_agent))
   end
@@ -90,7 +91,7 @@ defmodule Tentacat do
   end
 
   defp deserialization_options do
-    Application.get_env(:tentacat, :deserialization_options, [labels: :binary])
+    Application.get_env(:tentacat, :deserialization_options, labels: :binary)
   end
 
   @spec pagination(keyword) :: atom | nil
@@ -104,19 +105,24 @@ defmodule Tentacat do
     |> process_response
   end
 
-  @spec request_stream(atom, binary, Client.auth, any, (:one_page | nil | :stream)) :: Enumerable.t | response
+  @spec request_stream(atom, binary, Client.auth(), any, :one_page | nil | :stream) ::
+          Enumerable.t() | response
   def request_stream(method, url, auth, body \\ "", override \\ nil) do
     request_with_pagination(method, url, auth, JSX.encode!(body))
     |> stream_if_needed(override)
   end
 
   @spec stream_if_needed(pagination_response, :one_page | nil) :: response
-  @spec stream_if_needed({response, binary | nil, Client.auth}, :stream) :: Enumerable.t
+  @spec stream_if_needed({response, binary | nil, Client.auth()}, :stream) :: Enumerable.t()
   defp stream_if_needed({response, _, _}, :one_page), do: response
   defp stream_if_needed({response, nil, _}, _), do: response
+
   defp stream_if_needed(initial_results = {response, _, _}, nil) do
-    {elem(response, 0), Enum.to_list(Stream.resource(fn -> initial_results end, &process_stream/1, fn _ -> nil end)), elem(response, 2)}
+    {elem(response, 0),
+     Enum.to_list(Stream.resource(fn -> initial_results end, &process_stream/1, fn _ -> nil end)),
+     elem(response, 2)}
   end
+
   defp stream_if_needed(initial_results, :stream) do
     Stream.resource(fn -> initial_results end, &process_stream/1, fn _ -> nil end)
   end
@@ -136,7 +142,7 @@ defmodule Tentacat do
     {[item], {[], next, auth}}
   end
 
-  @spec request_with_pagination(atom, binary, Client.auth, any) :: pagination_response
+  @spec request_with_pagination(atom, binary, Client.auth(), any) :: pagination_response
   def request_with_pagination(method, url, auth, body \\ "") do
     resp =
       request!(
@@ -166,7 +172,7 @@ defmodule Tentacat do
     url
   end
 
-  @spec next_link(list) :: (binary | nil)
+  @spec next_link(list) :: binary | nil
   defp next_link(headers) do
     for {"Link", link_header} <- headers,
         links <- String.split(link_header, ",") do
