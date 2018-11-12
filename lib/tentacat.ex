@@ -5,7 +5,9 @@ defmodule Tentacat do
   @user_agent [{"User-agent", "tentacat"}]
 
   @type response ::
-          {:ok, :jsx.json_term(), HTTPoison.Response.t()} | {integer, any, HTTPoison.Response.t()}
+          {:ok, :jsx.json_term(), HTTPoison.Response.t()}
+          | {integer, any, HTTPoison.Response.t()}
+          | pagination_response
 
   @type pagination_response :: {response, binary | nil, Client.auth()}
 
