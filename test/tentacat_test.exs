@@ -51,6 +51,24 @@ defmodule TentacatTest do
     assert :meck.validate(JSX)
   end
 
+  test "process_response_body with an empty body" do
+    assert process_response_body("") == nil
+  end
+
+  test "process_response_body with content" do
+    :meck.expect(JSX, :decode!, 2, :decoded_json)
+
+    assert process_response_body("json") == :decoded_json
+  end
+
+  test "process_response_body with serialization options" do
+    Application.put_env(:tentacat, :deserialization_options, keys: :atoms)
+
+    :meck.expect(JSX, :decode!, fn _, [keys: :atoms] -> :decoded_json end)
+
+    assert process_response_body("json") == :decoded_json
+  end
+
   test "process response on a non-200 response and empty body" do
     assert {404, nil, _} =
              process_response(%HTTPoison.Response{status_code: 404, headers: %{}, body: nil})
