@@ -93,6 +93,7 @@ defmodule Tentacat do
     Application.get_env(:tentacat, :deserialization_options, [labels: :binary])
   end
 
+  @spec pagination(keyword) :: atom | nil
   defp pagination(options) do
     Keyword.get(options, :pagination, Application.get_env(:tentacat, :pagination, nil))
   end
@@ -103,20 +104,18 @@ defmodule Tentacat do
     |> process_response
   end
 
-  @spec request_stream(atom, binary, Client.auth, any, (:one_page | nil)) ::
-    ({:cont, any()} | {:halt, any()} | {:suspend, any()}, any() -> any())
-    | response
+  @spec request_stream(atom, binary, Client.auth, any, (:one_page | nil)) :: Enumerable.t | response
   def request_stream(method, url, auth, body \\ "", override \\ nil) do
     request_with_pagination(method, url, auth, JSX.encode!(body))
     |> stream_if_needed(override)
   end
 
-  @spec stream_if_needed({response, nil, Client.auth}, nil) :: response
   @spec stream_if_needed(pagination_tuple, :one_page) :: response
+  @spec stream_if_needed({response, nil, Client.auth}, nil) :: response
   @spec stream_if_needed({response, binary, Client.auth}, nil) :: Enumerable.t
-  defp stream_if_needed({response, nil, _}, _), do: response
   defp stream_if_needed({response, _, _}, :one_page), do: response
-  defp stream_if_needed(initial_results, _) do
+  defp stream_if_needed({response, nil, _}, _), do: response
+  defp stream_if_needed(initial_results, nil) do
     Stream.resource(fn -> initial_results end, &process_stream/1, fn _ -> nil end)
   end
 
@@ -139,8 +138,7 @@ defmodule Tentacat do
     {[item], {[], next, auth}}
   end
 
-  @spec request_with_pagination(atom, binary, Client.auth, any) ::
-    {response, any, Client.auth}
+  @spec request_with_pagination(atom, binary, Client.auth, any) :: pagination_tuple
   def request_with_pagination(method, url, auth, body \\ "") do
     resp =
       request!(
